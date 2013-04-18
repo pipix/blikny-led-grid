@@ -1,0 +1,243 @@
+/* code for max 7219 from maxim
+Datasheet: 
+ ______________________________________
+ 
+ Code History:
+ --------------
+ 
+ The orginal code was written for the Wiring board by:
+ * Nicholas Zambetti and Dave Mellis /Interaction Design Institute Ivrea /Dec 2004
+ 
+ First modification by:
+ * Marcus Hannerstig/  K3, malmï¿½ hï¿½gskola /2006
+ 
+ Second modification is by:
+ * tomek ness /FH-Potsdam / Feb 2007
+ * http://design.fh-potsdam.de/ 
+ * @acknowledgements: eric f. 
+  -if you are using more then one max7219, and they all should work the same, 
+ then use the function maxAll ---maxAll(register (1-8), collum (0-255))
+ -if you are using more than one max7219 and just want to change something
+ at one little guy, then use the function maxOne
+ ---maxOne(Max you wane controll (1== the first one), register (1-8), 
+ collum (0-255)). During initiation, be sure to send every part to every max7219 and then
+ upload it. For example, if you have five max7219's, you have to send the scanLimit 5 times
+ before you load it-- other wise not every max7219 will get the data. the
+ function maxInUse  keeps track of this, just tell it how many max7219 you are
+ using.
+ 
+ 
+ This version by Alicia Gibb and Nathan Seidle
+ *Modified Feb 2012
+ *We modified the method of calling the LEDs to binary. It appears to work better this way as the Matrix.h library is no longer a library supported by Arduino.
+ -----------------------------------
+ 
+ General notes: 
+ *To view pictures of the setup, go to flickr.com/photos/littlegreenfrogbot....
+ *To address the matrix in binary you will need the first row of your 'segment' LEDs in the decimal place pin of the max7219 labeled "seg dp". 
+ * Make sure to attach the negetive side of your LED matrix to the Digit pins of the chip and the positive side to the Segment pins of the chip.
+ *This is how to address LEDS in a binary list. DP, A, B, C and so on refer to pin slot LED is in: maxSingle(1, 0b DP A B C D E F G);
+ *In the binary below, 1 = LED is on in that row, 0 = LED is off 
+ */
+
+int dataIn = 2;
+int load = 3;
+int clock = 4;
+
+int maxInUse = 1;    //change this variable to set how many MAX7219's you'll use and change all instances of maxSingle to maxAll
+
+// define max7219 registers
+byte max7219_reg_noop        = 0x00;
+byte max7219_reg_digit0      = 0x01;
+byte max7219_reg_digit1      = 0x02;
+byte max7219_reg_digit2      = 0x03;
+byte max7219_reg_digit3      = 0x04;
+byte max7219_reg_digit4      = 0x05;
+byte max7219_reg_digit5      = 0x06;
+byte max7219_reg_digit6      = 0x07;
+byte max7219_reg_digit7      = 0x08;
+byte max7219_reg_decodeMode  = 0x09;
+byte max7219_reg_intensity   = 0x0a;
+byte max7219_reg_scanLimit   = 0x0b;
+byte max7219_reg_shutdown    = 0x0c;
+byte max7219_reg_displayTest = 0x0f;
+
+void putByte(byte data) {
+  byte i = 8;
+  byte mask;
+
+  while(i > 0) {
+
+    mask = 0x01 << (i - 1);      // get bitmask
+
+    digitalWrite(clock, LOW);   // tick
+
+    if (data & mask)            // choose bit
+      digitalWrite(dataIn, HIGH);// send 1
+    else
+      digitalWrite(dataIn, LOW); // send 0
+
+    digitalWrite(clock, HIGH);   // tock
+
+    --i;                         // move to lesser bit
+  }
+}
+
+void maxSingle(byte reg, byte col) {    
+  //maxSingle is the "easy"  function to use for a     //single max7219
+
+  digitalWrite(load, LOW);       // begin     
+  putByte(reg);                  // specify register
+  putByte(col);
+  digitalWrite(load, HIGH); 
+}
+
+void setup () {
+
+  pinMode(dataIn, OUTPUT);
+  pinMode(clock,  OUTPUT);
+  pinMode(load,   OUTPUT);
+
+  Serial.begin(9600);
+
+  //initiation of the max 7219
+  maxSingle(max7219_reg_scanLimit, 0x07);      
+  maxSingle(max7219_reg_decodeMode, 0x00);  // using an led matrix (not digits)
+  maxSingle(max7219_reg_shutdown, 0x01);    // not in shutdown mode
+  maxSingle(max7219_reg_displayTest, 0x00); // no display test
+  maxSingle(max7219_reg_intensity, 0x0f);    // set intensity to maximum
+
+  for (int e = 1 ; e <= 8 ; e++) {    // empty registers, turn all LEDs off 
+    maxSingle(e, 0);
+
+    // This list will make all LEDs turn on and stay on - it's a nice feature to check if your connects are all working
+    //This is how to address LEDS in a binary list. DP, A, B, C and so on refer to pin slot LED is in: maxSingle(1, 0b DP A B C D E F G);
+ /*
+    maxSingle(1, 0b11110000); 
+    maxSingle(2, 0b11110000); 
+    maxSingle(3, 0b11110000);
+    maxSingle(4, 0b11110000);
+    maxSingle(5, 0b11110000);
+    maxSingle(6, 0b11110000);
+    maxSingle(7, 0b11110000);
+    maxSingle(8, 0b11110000);
+  */
+  } 
+}
+
+
+void loop () {
+  //This is how to address LEDS in a binary list. DP, A, B, C and so on refer to pin slot LED is in: maxSingle(1, 0b DP A B C D E F G);
+/*
+  //This chunk of code animates LEDs in a diagonal pattern
+   maxSingle(1, 0b10000000); //Turn on one LED in this row
+   maxSingle(2, 0b00000000); //Turn all LEDs off in this row
+   maxSingle(3, 0b0000000);  //Turn all LEDs off in this row
+   maxSingle(4, 0b00000000); //Turn all LEDs off in this row
+   delay(200);
+   maxSingle(1, 0b00000000); //Turn all LEDs off in this row
+   maxSingle(2, 0b01000000); //Turn on one LED in this row
+   maxSingle(3, 0b00000000); //Turn all LEDs off in this row
+   maxSingle(4, 0b00000000); //Turn all LEDs off in this row
+   delay(200);
+   maxSingle(1, 0b00000000); //Turn all LEDs off in this row
+   maxSingle(2, 0b00000000); //Turn all LEDs off in this row
+   maxSingle(3, 0b00100000); //Turn on one LED in this row
+   maxSingle(4, 0b00000000); //Turn all LEDs off in this row
+   delay(200);
+   maxSingle(1, 0b00000000); //Turn all LEDs off in this row
+   maxSingle(2, 0b00000000); //Turn all LEDs off in this row
+   maxSingle(3, 0b00000000); //Turn all LEDs off in this row
+   maxSingle(4, 0b00010000); //Turn on one LED in this row
+   delay(200);
+*/
+  //This chunk of code animates LEDs in sequence
+  //There is a more efficient way of iterating each LED in sequence, show me more efficient code for 3 points extra credit
+ /* 
+   maxSingle(1, 0b10000000); //Turn on one LED in this row
+   maxSingle(2, 0b00000000); //Turn all LEDs off in this row
+   maxSingle(3, 0b0000000);  //Turn all LEDs off in this row
+   maxSingle(4, 0b00000000); //Turn all LEDs off in this row
+   delay(200);
+   maxSingle(1, 0b01000000); //Turn on one LED in this row
+   maxSingle(2, 0b00000000); //Turn all LEDs off in this row
+   maxSingle(3, 0b0000000);  //Turn all LEDs off in this row
+   maxSingle(4, 0b00000000); //Turn all LEDs off in this row
+   delay(200);
+   maxSingle(1, 0b00100000); //Turn on one LED in this row
+   maxSingle(2, 0b00000000); //Turn all LEDs off in this row
+   maxSingle(3, 0b0000000);  //Turn all LEDs off in this row
+   maxSingle(4, 0b00000000); //Turn all LEDs off in this row
+   delay(200);
+   maxSingle(1, 0b00010000); //Turn on one LED in this row
+   maxSingle(2, 0b00000000); //Turn all LEDs off in this row
+   maxSingle(3, 0b0000000);  //Turn all LEDs off in this row
+   maxSingle(4, 0b00000000); //Turn all LEDs off in this row
+   delay(200);
+   maxSingle(1, 0b00000000); //Turn on one LED in this row
+   maxSingle(2, 0b10000000); //Turn all LEDs off in this row
+   maxSingle(3, 0b0000000);  //Turn all LEDs off in this row
+   maxSingle(4, 0b00000000); //Turn all LEDs off in this row
+   delay(200);
+   maxSingle(1, 0b00000000); //Turn on one LED in this row
+   maxSingle(2, 0b01000000); //Turn all LEDs off in this row
+   maxSingle(3, 0b0000000);  //Turn all LEDs off in this row
+   maxSingle(4, 0b00000000); //Turn all LEDs off in this row
+   delay(200);
+   maxSingle(1, 0b00000000); //Turn on one LED in this row
+   maxSingle(2, 0b00100000); //Turn all LEDs off in this row
+   maxSingle(3, 0b0000000);  //Turn all LEDs off in this row
+   maxSingle(4, 0b00000000); //Turn all LEDs off in this row
+   delay(200);
+   maxSingle(1, 0b00000000); //Turn on one LED in this row
+   maxSingle(2, 0b00010000); //Turn all LEDs off in this row
+   maxSingle(3, 0b0000000);  //Turn all LEDs off in this row
+   maxSingle(4, 0b00000000); //Turn all LEDs off in this row
+   delay(200);
+   maxSingle(1, 0b00000000); //Turn on one LED in this row
+   maxSingle(2, 0b00000000); //Turn all LEDs off in this row
+   maxSingle(3, 0b10000000);  //Turn all LEDs off in this row
+   maxSingle(4, 0b00000000); //Turn all LEDs off in this row
+   delay(200);
+   maxSingle(1, 0b00000000); //Turn on one LED in this row
+   maxSingle(2, 0b00000000); //Turn all LEDs off in this row
+   maxSingle(3, 0b01000000);  //Turn all LEDs off in this row
+   maxSingle(4, 0b00000000); //Turn all LEDs off in this row
+   delay(200);
+   maxSingle(1, 0b00000000); //Turn on one LED in this row
+   maxSingle(2, 0b00000000); //Turn all LEDs off in this row
+   maxSingle(3, 0b00100000);  //Turn all LEDs off in this row
+   maxSingle(4, 0b00000000); //Turn all LEDs off in this row
+   delay(200);
+   maxSingle(1, 0b00000000); //Turn on one LED in this row
+   maxSingle(2, 0b00000000); //Turn all LEDs off in this row
+   maxSingle(3, 0b00010000);  //Turn all LEDs off in this row
+   maxSingle(4, 0b00000000); //Turn all LEDs off in this row
+   delay(200);
+   maxSingle(1, 0b00000000); //Turn on one LED in this row
+   maxSingle(2, 0b00000000); //Turn all LEDs off in this row
+   maxSingle(3, 0b00000000);  //Turn all LEDs off in this row
+   maxSingle(4, 0b10000000); //Turn all LEDs off in this row
+   delay(200);
+   maxSingle(1, 0b00000000); //Turn on one LED in this row
+   maxSingle(2, 0b00000000); //Turn all LEDs off in this row
+   maxSingle(3, 0b00000000);  //Turn all LEDs off in this row
+   maxSingle(4, 0b01000000); //Turn all LEDs off in this row
+   delay(200);
+   maxSingle(1, 0b00000000); //Turn on one LED in this row
+   maxSingle(2, 0b00000000); //Turn all LEDs off in this row
+   maxSingle(3, 0b00000000);  //Turn all LEDs off in this row
+   maxSingle(4, 0b00100000); //Turn all LEDs off in this row
+   delay(200);
+   maxSingle(1, 0b00000000); //Turn on one LED in this row
+   maxSingle(2, 0b00000000); //Turn all LEDs off in this row
+   maxSingle(3, 0b00000000);  //Turn all LEDs off in this row
+   maxSingle(4, 0b00010000); //Turn all LEDs off in this row
+   delay(200);
+   */
+   
+    maxSingle(2, 0b00100000);  //Turn all LEDs off in this row
+   maxSingle(1, 0b01100000); //Turn all LEDs off in this row
+   maxSingle(3, 0b10000000); //Turn all LEDs off in this row  
+ }
+
